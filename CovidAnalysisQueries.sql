@@ -23,20 +23,24 @@ order by 1,2
 
 --Looking at Total Cases vs Population
 -- Shows what percentage of population got Covid in Canada
-Select Location, date, total_cases, population, (total_cases/population)*100 as Contracted_Percentage
+Select Location,population, date, Max(total_cases) as HighestContractedCount, MAX((total_cases/population))*100 as Contracted_Percentage
 From CovidAnalysis..CovidDeaths
-Where location like '%Canada%'
-order by 1,2
+--Where location like '%Canada%'
+Group by Location, population, date
+order by Contracted_Percentage desc
 
 
 -- Looking at Countries with Highest Infection Rate compared to Population
-Select Location, Population, MAX(total_cases) as HighestInfectionCount, Max((total_cases/population))*100 as Percent_Population_Infected
+Select Location, date, Population, MAX(total_cases) as HighestInfectionCount, Max((total_cases/population))*100 as Percent_Population_Infected
 From CovidAnalysis..CovidDeaths
-Group by Location, Population
+
 -- Infection rate
 	--order by Percent_Population_Infected desc
 -- Infection Count
-order by HighestInfectioncount desc
+Where continent is not null 
+and location not in ('World', 'European Union', 'International')
+Group by Location, date, population
+order by Percent_Population_Infected desc
 
 
 -- Showing Countries with Highest death count and death rate
@@ -53,6 +57,7 @@ From CovidAnalysis..CovidDeaths
 Where continent is null
 Group by location
 order by total_death_count desc
+
 
 
 -- Global statistics
@@ -100,6 +105,7 @@ j AS (
     d.date,
     d.population,
     v.new_vaccinations,
+    d.total_deaths,
     SUM(CONVERT(bigint, COALESCE(v.new_vaccinations,0)))
       OVER (PARTITION BY d.location ORDER BY d.location, d.date) AS RollingPeopleVaccinated
   FROM d
@@ -111,7 +117,10 @@ j AS (
 )
 SELECT continent, location, date, population, new_vaccinations,RollingPeopleVaccinated,
 CAST(100.0 * RollingPeopleVaccinated / NULLIF(CAST(population AS float), 0) AS decimal(6,2))
-    AS PercentVaccinated
+    AS PercentVaccinated,
+    total_deaths,
+    (total_deaths/population)*100 as DeathPercentage
+    
 FROM j
 ORDER BY 2,3;
 
